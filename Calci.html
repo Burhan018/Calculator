@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calc — Minimal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #e8eaf0;
+    --card: #eceef4;
+    --text-primary: #1a1d2e;
+    --text-secondary: #8b8fa8;
+    --text-display: #1a1d2e;
+    --shadow-light: #ffffff;
+    --shadow-dark: #c8cad4;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --operator-bg: #eceef4;
+    --operator-text: #6c63ff;
+    --equal-bg: linear-gradient(145deg, #7c74ff, #5a52e8);
+    --btn-bg: #eceef4;
+    --btn-text: #1a1d2e;
+    --display-bg: transparent;
+    --toggle-bg: #eceef4;
+    --transition: 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  [data-theme="dark"] {
+    --bg: #1e2030;
+    --card: #252840;
+    --text-primary: #e8eaf8;
+    --text-secondary: #6b6f8a;
+    --text-display: #f0f0ff;
+    --shadow-light: #2e3150;
+    --shadow-dark: #14162a;
+    --accent: #8b84ff;
+    --accent2: #ff6584;
+    --operator-bg: #252840;
+    --operator-text: #8b84ff;
+    --equal-bg: linear-gradient(145deg, #7c74ff, #5a52e8);
+    --btn-bg: #252840;
+    --btn-text: #e8eaf8;
+    --display-bg: transparent;
+    --toggle-bg: #252840;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    transition: background var(--transition), color var(--transition);
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: var(--bg);
+  }
+
+  /* Animated background blobs */
+  .bg-blobs {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.18;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  [data-theme="dark"] .blob { opacity: 0.12; }
+  .blob1 { width: 400px; height: 400px; background: #6c63ff; top: -100px; left: -100px; animation-delay: 0s; }
+  .blob2 { width: 300px; height: 300px; background: #ff6584; bottom: -80px; right: -80px; animation-delay: -4s; }
+  .blob3 { width: 200px; height: 200px; background: #43e97b; top: 50%; left: 60%; animation-delay: -8s; }
+
+  @keyframes drift {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, 20px) scale(1.08); }
+  }
+
+  /* Theme toggle */
+  .theme-toggle {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 100;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--toggle-bg);
+    box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: box-shadow var(--transition), transform 0.15s ease, background var(--transition);
+  }
+  .theme-toggle:active {
+    box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light), inset 2px 2px 5px var(--shadow-dark), inset -2px -2px 5px var(--shadow-light);
+    transform: scale(0.95);
+  }
+
+  /* Main card */
+  .calculator {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 380px;
+    background: var(--card);
+    border-radius: 36px;
+    padding: 32px 28px 28px;
+    box-shadow: 14px 14px 40px var(--shadow-dark), -14px -14px 40px var(--shadow-light);
+    transition: background var(--transition), box-shadow var(--transition);
+  }
+
+  /* Display */
+  .display-area {
+    padding: 12px 8px 24px;
+    text-align: right;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .expression {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--text-secondary);
+    min-height: 22px;
+    letter-spacing: 0.5px;
+    transition: color var(--transition);
+    word-break: break-all;
+    opacity: 0.75;
+  }
+  .result {
+    font-family: 'DM Mono', monospace;
+    font-size: 52px;
+    font-weight: 300;
+    color: var(--text-display);
+    letter-spacing: -2px;
+    line-height: 1;
+    word-break: break-all;
+    transition: color var(--transition);
+    animation: none;
+  }
+  .result.flash {
+    animation: resultFlash 0.35s ease forwards;
+  }
+  @keyframes resultFlash {
+    0%   { opacity: 1; transform: translateY(0); }
+    30%  { opacity: 0; transform: translateY(-10px); }
+    60%  { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--shadow-dark), transparent);
+    margin: 0 4px 24px;
+    opacity: 0.5;
+  }
+
+  /* Button grid */
+  .btn-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  /* Base button */
+  .btn {
+    position: relative;
+    height: 68px;
+    border: none;
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    box-shadow: 5px 5px 14px var(--shadow-dark), -5px -5px 14px var(--shadow-light);
+    transition:
+      box-shadow var(--transition),
+      transform 0.1s ease,
+      background var(--transition),
+      color var(--transition);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+
+  .btn:hover { filter: brightness(1.03); }
+
+  .btn:active,
+  .btn.pressed {
+    box-shadow: 2px 2px 6px var(--shadow-dark), -2px -2px 6px var(--shadow-light),
+                inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+    transform: scale(0.96);
+  }
+
+  /* Number buttons */
+  .btn-num {
+    font-weight: 400;
+  }
+
+  /* Operator buttons */
+  .btn-op {
+    color: var(--operator-text);
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  /* Function buttons (C, ±, %) */
+  .btn-fn {
+    color: var(--accent2);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Delete button */
+  .btn-del {
+    color: var(--accent2);
+    font-size: 20px;
+  }
+
+  /* Zero button — spans 2 columns */
+  .btn-zero {
+    grid-column: span 2;
+    border-radius: 24px;
+    justify-content: flex-start;
+    padding-left: 26px;
+  }
+
+  /* Equals button */
+  .btn-eq {
+    background: var(--equal-bg);
+    color: #fff;
+    box-shadow: 5px 5px 18px rgba(108, 99, 255, 0.45), -3px -3px 10px var(--shadow-light);
+  }
+  .btn-eq:active,
+  .btn-eq.pressed {
+    box-shadow: 2px 2px 6px rgba(108, 99, 255, 0.6),
+                inset 3px 3px 8px rgba(0,0,0,0.2), inset -3px -3px 8px rgba(255,255,255,0.08);
+    transform: scale(0.96);
+  }
+
+  /* Error state */
+  .result.error {
+    font-size: 26px;
+    color: var(--accent2);
+  }
+
+  /* Responsive */
+  @media (max-width: 420px) {
+    .calculator { padding: 24px 18px 22px; border-radius: 28px; }
+    .btn { height: 60px; font-size: 18px; border-radius: 17px; }
+    .btn-grid { gap: 11px; }
+    .result { font-size: 42px; }
+  }
+  @media (max-width: 340px) {
+    .btn { height: 54px; font-size: 16px; }
+    .result { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-blobs">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+
+<div class="calculator" role="main" aria-label="Calculator">
+  <div class="display-area">
+    <div class="expression" id="expression" aria-live="polite"></div>
+    <div class="result" id="result" aria-live="assertive">0</div>
+  </div>
+  <div class="divider"></div>
+  <div class="btn-grid" id="btnGrid">
+    <!-- Row 1 -->
+    <button class="btn btn-fn" data-action="clear">C</button>
+    <button class="btn btn-fn" data-action="sign">±</button>
+    <button class="btn btn-fn" data-action="percent">%</button>
+    <button class="btn btn-op" data-action="operator" data-value="÷">÷</button>
+    <!-- Row 2 -->
+    <button class="btn btn-num" data-action="digit" data-value="7">7</button>
+    <button class="btn btn-num" data-action="digit" data-value="8">8</button>
+    <button class="btn btn-num" data-action="digit" data-value="9">9</button>
+    <button class="btn btn-op" data-action="operator" data-value="×">×</button>
+    <!-- Row 3 -->
+    <button class="btn btn-num" data-action="digit" data-value="4">4</button>
+    <button class="btn btn-num" data-action="digit" data-value="5">5</button>
+    <button class="btn btn-num" data-action="digit" data-value="6">6</button>
+    <button class="btn btn-op" data-action="operator" data-value="−">−</button>
+    <!-- Row 4 -->
+    <button class="btn btn-num" data-action="digit" data-value="1">1</button>
+    <button class="btn btn-num" data-action="digit" data-value="2">2</button>
+    <button class="btn btn-num" data-action="digit" data-value="3">3</button>
+    <button class="btn btn-op" data-action="operator" data-value="+">+</button>
+    <!-- Row 5 -->
+    <button class="btn btn-num btn-zero" data-action="digit" data-value="0">0</button>
+    <button class="btn btn-num" data-action="decimal">.</button>
+    <button class="btn btn-eq" data-action="equals">=</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  // --- State ---
+  let current = '0';
+  let prev = null;
+  let operator = null;
+  let justEvaled = false;
+  let expressionStr = '';
+
+  // --- DOM ---
+  const resultEl  = document.getElementById('result');
+  const exprEl    = document.getElementById('expression');
+  const themeBtn  = document.getElementById('themeToggle');
+  const btnGrid   = document.getElementById('btnGrid');
+
+  // --- Theme ---
+  let darkMode = false;
+  themeBtn.addEventListener('click', () => {
+    darkMode = !darkMode;
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '');
+    themeBtn.textContent = darkMode ? '☀️' : '🌙';
+  });
+
+  // --- Display ---
+  function updateDisplay(flash = false) {
+    exprEl.textContent = expressionStr;
+
+    const display = current.length > 12 ? parseFloat(current).toPrecision(10) : current;
+    resultEl.classList.remove('flash', 'error');
+    void resultEl.offsetWidth; // reflow
+    resultEl.textContent = formatNumber(display);
+    if (flash) {
+      resultEl.classList.add('flash');
+    }
+  }
+
+  function formatNumber(str) {
+    if (str === 'Error' || str === 'Infinity' || str === '-Infinity') return 'Error';
+    const num = parseFloat(str);
+    if (isNaN(num)) return str;
+    // Show commas for integers, leave decimals as-is
+    if (!str.includes('.') && Math.abs(num) < 1e15) {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 10 });
+    }
+    return str;
+  }
+
+  // --- Actions ---
+  function inputDigit(d) {
+    if (justEvaled) { current = d; expressionStr = ''; justEvaled = false; }
+    else if (current === '0') { current = d; }
+    else if (current.length < 16) { current += d; }
+    updateDisplay();
+  }
+
+  function inputDecimal() {
+    if (justEvaled) { current = '0.'; expressionStr = ''; justEvaled = false; }
+    else if (!current.includes('.')) { current += '.'; }
+    updateDisplay();
+  }
+
+  function inputOperator(op) {
+    if (operator && !justEvaled) {
+      // Chain: evaluate first
+      calculate(false);
+    }
+    prev = parseFloat(current);
+    operator = op;
+    expressionStr = `${formatNumber(current)} ${op}`;
+    justEvaled = false;
+    current = '0';
+    updateDisplay();
+  }
+
+  function calculate(flash = true) {
+    if (operator === null || prev === null) return;
+    const b = parseFloat(current);
+    const a = prev;
+    let res;
+
+    expressionStr = `${formatNumber(String(a))} ${operator} ${formatNumber(String(b))} =`;
+
+    switch (operator) {
+      case '+': res = a + b; break;
+      case '−': res = a - b; break;
+      case '×': res = a * b; break;
+      case '÷':
+        if (b === 0) {
+          current = 'Error';
+          resultEl.classList.add('error');
+          expressionStr = '';
+          operator = null; prev = null; justEvaled = true;
+          updateDisplay(true);
+          return;
+        }
+        res = a / b;
+        break;
+    }
+
+    // Precision fix
+    const rounded = parseFloat(res.toPrecision(12));
+    current = String(rounded);
+    operator = null;
+    prev = null;
+    justEvaled = true;
+    updateDisplay(flash);
+  }
+
+  function clear() {
+    current = '0'; prev = null; operator = null; justEvaled = false; expressionStr = '';
+    resultEl.classList.remove('error');
+    updateDisplay();
+  }
+
+  function deleteLast() {
+    if (justEvaled || current === 'Error') { clear(); return; }
+    if (current.length === 1 || (current.length === 2 && current[0] === '-')) {
+      current = '0';
+    } else {
+      current = current.slice(0, -1);
+    }
+    updateDisplay();
+  }
+
+  function toggleSign() {
+    if (current === '0' || current === 'Error') return;
+    current = String(parseFloat(current) * -1);
+    updateDisplay();
+  }
+
+  function percent() {
+    if (current === 'Error') return;
+    current = String(parseFloat(current) / 100);
+    updateDisplay();
+  }
+
+  // --- Button press effect ---
+  function animateBtn(el) {
+    el.classList.add('pressed');
+    setTimeout(() => el.classList.remove('pressed'), 130);
+  }
+
+  // --- Click handler ---
+  btnGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn');
+    if (!btn) return;
+    animateBtn(btn);
+    const { action, value } = btn.dataset;
+    dispatch(action, value);
+  });
+
+  // --- Pointer feedback for touch ---
+  btnGrid.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.btn');
+    if (btn) btn.classList.add('pressed');
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+    btnGrid.addEventListener(ev, (e) => {
+      const btn = e.target.closest('.btn');
+      if (btn) setTimeout(() => btn.classList.remove('pressed'), 100);
+    })
+  );
+
+  function dispatch(action, value) {
+    switch(action) {
+      case 'digit':    inputDigit(value); break;
+      case 'operator': inputOperator(value); break;
+      case 'equals':   calculate(); break;
+      case 'decimal':  inputDecimal(); break;
+      case 'clear':    clear(); break;
+      case 'delete':   deleteLast(); break;
+      case 'sign':     toggleSign(); break;
+      case 'percent':  percent(); break;
+    }
+  }
+
+  // --- Keyboard support ---
+  const keyMap = {
+    '0':'digit:0','1':'digit:1','2':'digit:2','3':'digit:3','4':'digit:4',
+    '5':'digit:5','6':'digit:6','7':'digit:7','8':'digit:8','9':'digit:9',
+    '+':'operator:+','-':'operator:−','*':'operator:×','/':'operator:÷',
+    'Enter':'equals','=':'equals','.':'decimal',',':'decimal',
+    'Backspace':'delete','Delete':'clear','Escape':'clear',
+    '%':'percent'
+  };
+
+  document.addEventListener('keydown', (e) => {
+    const mapped = keyMap[e.key];
+    if (!mapped) return;
+    e.preventDefault();
+    const [action, value] = mapped.split(':');
+
+    // Visual feedback on matching button
+    const selector = value
+      ? `[data-action="${action}"][data-value="${value}"]`
+      : `[data-action="${action}"]`;
+    const matchBtn = btnGrid.querySelector(selector);
+    if (matchBtn) animateBtn(matchBtn);
+
+    dispatch(action, value);
+  });
+
+  // --- Init ---
+  updateDisplay();
+})();
+</script>
+</body>
+</html>
